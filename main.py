@@ -10,6 +10,10 @@ import aiohttp
 from discord import Embed, Interaction
 import os
 from keep_alive import keep_alive
+from tinydb import TinyDB, Query
+
+# Cria ou abre o arquivo de banco de dados
+db = TinyDB("database.json")
 
 # Caminho do arquivo de dados
 DATA_FILE = "players.json"
