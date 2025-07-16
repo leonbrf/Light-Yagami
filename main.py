@@ -11,8 +11,6 @@ from discord import Embed, Interaction
 import os
 from keep_alive import keep_alive
 
-
-
 # Caminho do arquivo de dados
 DATA_FILE = "players.json"
 REACTION_FILE = "reaction_roles.json"
@@ -555,6 +553,14 @@ async def on_raw_reaction_add(payload: discord.RawReactionActionEvent):
                 if role:
                     await member.add_roles(role, reason="Reaction role")
                     print(f"Cargo {role.name} atribuído a {member.name}.")
+
+
+bot = commands.Bot(command_prefix='!')
+
+@bot.event
+async def on_ready():
+    print(f'Bot {bot.user} está online!')
+
 
 keep_alive()
 
