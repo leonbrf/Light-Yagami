@@ -13,27 +13,15 @@ from keep_alive import keep_alive
 from tinydb import TinyDB, Query
 from tinydb.operations import set
 
-# Criação dos bancos
-players_db = TinyDB("players_db.json")
-reaction_roles_db = TinyDB("reaction_roles_db.json")
+DATA_FILE = "players_db.json"
+REACTION_FILE = "reaction_roles_db.json"
+
+players_db = TinyDB(DATA_FILE)
+reaction_roles_db = TinyDB(REACTION_FILE)
 
 Player = Query()
 
-def load_data():
-    if os.path.exists(DATA_FILE):
-        with open(DATA_FILE, "r") as f:
-            return json.load(f)
-    return {}
-
-
-def save_data(data):
-    with open(DATA_FILE, "w") as f:
-        json.dump(data, f, indent=4)
-
-
 player_data = load_data()
-
-
 
 class MeuPrimeiroBot(discord.Client):
 
@@ -97,15 +85,6 @@ class MeuPrimeiroBot(discord.Client):
         close_button.callback = close_callback
         view = discord.ui.View()
         view.add_item(close_button)
-
-        # Envia mensagem de boas-vindas no canal do ticket
-        try:
-            await channel.send(f"{member.mention} Obrigado por abrir o ticket! Um membro da staff irá te atender em breve.", view=view)
-            print(f"Mensagem de boas-vindas enviada para {member.mention} no canal {channel_name}")
-        except Exception as e:
-            print(f"Erro ao enviar mensagem no canal do ticket: {e}")
-
-
 
     async def on_member_join(self, member: discord.Member):
         print(f"Novo membro entrou: {member}")
@@ -490,11 +469,8 @@ async def embed(interaction: discord.Interaction, descricao: str, titulo: str = 
     embed.set_footer(text=f"Enviado por {interaction.user.name}")
     await interaction.response.send_message(embed=embed)
 
-@bot.tree.command(name="reactionrole", description="Configura um sistema de reaction roles")
-@app_commands.describe(
-    message="ID da mensagem onde as reações serão usadas",
-    emoji="Emoji para a reação",
-    role="Cargo a ser atribuído")
+# No comando /set_reaction_role e nos eventos, use reaction_roles_db, por exemplo:
+
 @bot.tree.command(name="setreactionrole", description="Create a reaction role message")
 @app_commands.checks.has_permissions(administrator=True)
 @app_commands.describe(
@@ -513,8 +489,8 @@ async def set_reaction_role(
     sent_message = await channel.send(message)
     await sent_message.add_reaction(emoji)
 
-    # Save to DB
-    reaction_db.insert({
+    # Salva no banco correto
+    reaction_roles_db.insert({
         "message_id": sent_message.id,
         "channel_id": channel.id,
         "emoji": emoji,
