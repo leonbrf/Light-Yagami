@@ -10,18 +10,25 @@ import aiohttp
 from discord import Embed, Interaction
 import os
 from keep_alive import keep_alive
-from tinydb import TinyDB, Query
-from tinydb.operations import set
+from pymongo.mongo_client import MongoClient
+from pymongo.server_api import ServerApi
+from pymongo import ReturnDocument
 
-DATA_FILE = "players_db.json"
-REACTION_FILE = "reaction_roles_db.json"
+uri = "mongodb+srv://leon020211:leon020211@light.vu55u7q.mongodb.net/?retryWrites=true&w=majority&appName=Light"
 
-players_db = TinyDB(DATA_FILE)
-reaction_roles_db = TinyDB(REACTION_FILE)
+# Create a new client and connect to the server
+client = MongoClient(uri, server_api=ServerApi('1'))
+# Send a ping to confirm a successful connection
+try:
+    client.admin.command('ping')
+    print("Pinged your deployment. You successfully connected to MongoDB!")
+except Exception as e:
+    print(e)
 
-reaction_db = TinyDB("reaction_db.json")
-
-Player = Query()
+client = MongoClient(uri, server_api=ServerApi('1'))
+db = client["Light"]  # nome do banco
+players = db["players"]  # coleção players
+reaction_roles = db["reaction_roles"]  # coleção reaction roles
 
 class MeuPrimeiroBot(discord.Client):
 
@@ -123,26 +130,6 @@ async def on_ready():
         print("Canal de ticket não encontrado.")
 
 
-def load_players():
-    if os.path.exists(DATA_FILE):
-        with open(DATA_FILE, "r") as f:
-            return json.load(f)
-    return {}
-
-def save_players(data):
-    with open(DATA_FILE, "w") as f:
-        json.dump(data, f, indent=4)
-
-def load_reactions():
-    if os.path.exists(REACTION_FILE):
-        with open(REACTION_FILE, "r") as f:
-            return json.load(f)
-    return {}
-
-def save_reactions(data):
-    with open(REACTION_FILE, "w") as f:
-        json.dump(data, f, indent=4)
-
 # Comando /soma
 @bot.tree.command(name="soma", description="Some dois números distintos")
 @app_commands.describe(numero1="Primeiro número a somar",
@@ -196,8 +183,7 @@ async def ban_user(interaction: discord.Interaction, user: discord.Member):
 
 # Comando /setrole
 @bot.tree.command(name="setrole", description="Atribui um cargo a um usuário")
-@app_commands.describe(user="Usuário que vai receber o cargo",
-                       cargo="Cargo a ser atribuído")
+@app_commands.describe(user="Usuário que vai receber o cargo", cargo="Cargo a ser atribuído")
 async def atribuir_cargo(interaction: discord.Interaction, user: discord.Member, cargo: discord.Role):
     # Verifica se a interação aconteceu em um servidor
     if interaction.guild is None:
@@ -266,6 +252,8 @@ async def clear(interaction: discord.Interaction, amount: int):
     except Exception as e:
         await interaction.followup.send(f"Ocorreu um erro: {e}",
                                         ephemeral=True)
+
+
 # /setplayerinfo
 @bot.tree.command(name="setplayerinfo", description="Register your player info")
 @app_commands.describe(
@@ -287,7 +275,8 @@ async def set_player_info(
 ):
     user_id = str(interaction.user.id)
 
-    if players_db.contains(Player.id == user_id):
+    existing_player = players.find_one({"id": user_id})
+    if existing_player:
         await interaction.response.send_message("You already registered your info. Use /editplayerinfo to update it.", ephemeral=True)
         return
 
@@ -295,7 +284,7 @@ async def set_player_info(
         await interaction.response.send_message("Level must be between 1 and 625.", ephemeral=True)
         return
 
-    players_db.insert({
+    players.insert_one({
         "id": user_id,
         "name": name,
         "fruit": fruit,
@@ -328,7 +317,8 @@ async def edit_player_info(
 ):
     user_id = str(interaction.user.id)
 
-    if not players_db.contains(Player.id == user_id):
+    existing_player = players.find_one({"id": user_id})
+    if not existing_player:
         await interaction.response.send_message("You haven't registered your info yet. Use /setplayerinfo.", ephemeral=True)
         return
 
@@ -336,14 +326,17 @@ async def edit_player_info(
         await interaction.response.send_message("Level must be between 1 and 625.", ephemeral=True)
         return
 
-    players_db.update({
-        "name": name,
-        "fruit": fruit,
-        "level": level,
-        "platform": platform,
-        "style": style,
-        "origin": origin
-    }, Player.id == user_id)
+    players.update_one(
+        {"id": user_id},
+        {"$set": {
+            "name": name,
+            "fruit": fruit,
+            "level": level,
+            "platform": platform,
+            "style": style,
+            "origin": origin
+        }}
+    )
 
     await interaction.response.send_message("Player info updated successfully!", ephemeral=True)
 
@@ -352,7 +345,7 @@ async def edit_player_info(
 @app_commands.describe(user="User to view player info from")
 async def player_info(interaction: discord.Interaction, user: discord.Member):
     user_id = str(user.id)
-    data = players_db.get(Player.id == user_id)
+    data = players.find_one({"id": user_id})
 
     if not data:
         await interaction.response.send_message("This user has not registered their player info yet.", ephemeral=True)
@@ -362,54 +355,14 @@ async def player_info(interaction: discord.Interaction, user: discord.Member):
         title=f"{user.display_name}'s Player Info",
         color=discord.Color.blurple()
     )
-    embed.add_field(name="Name", value=data["name"], inline=True)
-    embed.add_field(name="Fruit", value=data["fruit"], inline=True)
-    embed.add_field(name="Level", value=data["level"], inline=True)
-    embed.add_field(name="Platform", value=data["platform"], inline=True)
-    embed.add_field(name="Fighting Style", value=data["style"], inline=True)
-    embed.add_field(name="Crew Origin", value=data["origin"], inline=False)
+    embed.add_field(name="Name", value=data.get("name", "N/A"), inline=True)
+    embed.add_field(name="Fruit", value=data.get("fruit", "N/A"), inline=True)
+    embed.add_field(name="Level", value=data.get("level", "N/A"), inline=True)
+    embed.add_field(name="Platform", value=data.get("platform", "N/A"), inline=True)
+    embed.add_field(name="Fighting Style", value=data.get("style", "N/A"), inline=True)
+    embed.add_field(name="Crew Origin", value=data.get("origin", "N/A"), inline=False)
 
     await interaction.response.send_message(embed=embed, ephemeral=False)
-
-@bot.tree.command(name="recruit", description="chama os recrutadores")
-async def recruit(interaction: discord.Interaction):
-    await interaction.response.send_message(
-        f"@RECRUTADOR, {interaction.user.mention} quer se juntar a tripulação!",
-        ephemeral=False)
-
-@bot.tree.command(name="mute", description="Muta um usuário")
-@app_commands.describe(user="Usuário a ser mutado",
-                       tempo="Tempo de mute em minutos")
-async def mute(interaction: discord.Interaction, user: discord.Member, tempo: int):
-    if not interaction.user.guild_permissions.manage_roles:
-        await interaction.response.send_message(
-            "❌ Você não tem permissão para usar este comando.", ephemeral=True)
-        return
-
-    cargo_mute = discord.utils.get(interaction.guild.roles, name="Muted")
-    if not cargo_mute:
-        await interaction.response.send_message(
-            "❌ O cargo 'Muted' não foi encontrado.", ephemeral=True)
-        return
-
-    try:
-        await user.add_roles(
-            cargo_mute,
-            reason=f"Mutado por {tempo} minutos por {interaction.user}")
-        await interaction.response.send_message(
-            f"🔇 {user.mention} foi mutado por {tempo} minutos.")
-        await asyncio.sleep(tempo * 60)
-        await user.remove_roles(cargo_mute, reason="Tempo de mute expirado")
-        await interaction.followup.send(
-            f"🔊 {user.mention} foi desmutado automaticamente.")
-    except discord.Forbidden:
-        await interaction.response.send_message(
-            "❌ Não tenho permissão para atribuir/remover esse cargo.",
-            ephemeral=True)
-    except Exception as e:
-        await interaction.response.send_message(f"❌ Ocorreu um erro: {e}",
-                                                ephemeral=True)
-
 
 @bot.tree.command(name="unmute", description="Desmuta um usuário")
 @app_commands.describe(user="Usuário a ser desmutado")
@@ -475,7 +428,7 @@ async def embed(interaction: discord.Interaction, descricao: str, titulo: str = 
     embed.set_footer(text=f"Enviado por {interaction.user.name}")
     await interaction.response.send_message(embed=embed)
 
-# No comando /set_reaction_role e nos eventos, use reaction_roles_db, por exemplo:
+# No comando /set_reaction_role e nos eventos, use a coleção reaction_roles (MongoDB)
 
 @bot.tree.command(name="setreactionrole", description="Create a reaction role message")
 @app_commands.checks.has_permissions(administrator=True)
@@ -495,8 +448,8 @@ async def set_reaction_role(
     sent_message = await channel.send(message)
     await sent_message.add_reaction(emoji)
 
-    # Salva no banco correto
-    reaction_roles_db.insert({
+    # Salva no MongoDB
+    reaction_roles.insert_one({
         "message_id": sent_message.id,
         "channel_id": channel.id,
         "emoji": emoji,
@@ -507,28 +460,34 @@ async def set_reaction_role(
 
 @bot.event
 async def on_raw_reaction_add(payload):
-    if payload.member.bot:
+    if payload.member and payload.member.bot:
         return
 
-    for entry in reaction_db:
-        if (entry["message_id"] == payload.message_id and entry["emoji"] == str(payload.emoji)):
-            guild = bot.get_guild(payload.guild_id)
-            role = guild.get_role(entry["role_id"])
-            member = guild.get_member(payload.user_id)
-            if role and member:
-                await member.add_roles(role)
-            break
+    entry = reaction_roles.find_one({
+        "message_id": payload.message_id,
+        "emoji": str(payload.emoji)
+    })
+
+    if entry:
+        guild = bot.get_guild(payload.guild_id)
+        role = guild.get_role(entry["role_id"]) if guild else None
+        member = guild.get_member(payload.user_id) if guild else None
+        if role and member:
+            await member.add_roles(role)
 
 @bot.event
 async def on_raw_reaction_remove(payload):
-    for entry in reaction_db:
-        if (entry["message_id"] == payload.message_id and entry["emoji"] == str(payload.emoji)):
-            guild = bot.get_guild(payload.guild_id)
-            role = guild.get_role(entry["role_id"])
-            member = guild.get_member(payload.user_id)
-            if role and member:
-                await member.remove_roles(role)
-            break
+    entry = reaction_roles.find_one({
+        "message_id": payload.message_id,
+        "emoji": str(payload.emoji)
+    })
+
+    if entry:
+        guild = bot.get_guild(payload.guild_id)
+        role = guild.get_role(entry["role_id"]) if guild else None
+        member = guild.get_member(payload.user_id) if guild else None
+        if role and member:
+            await member.remove_roles(role)
 
 @set_reaction_role.error
 async def set_reaction_role_error(interaction, error):
