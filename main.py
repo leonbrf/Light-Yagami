@@ -208,7 +208,6 @@ async def kick_user(interaction: discord.Interaction, user: discord.Member):
 # Comando /ban
 @bot.tree.command(name="ban", description="Bane um usuário do servidor")
 @app_commands.describe(user="Usuário a ser banido")
-await interaction.response.defer(thinking=True, ephemeral=True)
 async def ban_user(interaction: discord.Interaction, user: discord.Member):
     if user.top_role >= interaction.user.top_role:
         await interaction.response.send_message("Você não pode expulsar/banir alguém com cargo igual ou superior ao seu.", ephemeral=True)
