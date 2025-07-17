@@ -37,10 +37,19 @@ class MeuPrimeiroBot(discord.Client):
     async def setup_hook(self):
         await self.tree.sync()
 
-    async def on_ready(self):
+async def on_ready(self):
         print(f"O Bot {self.user} foi ligado com sucesso.")
         guild = self.get_guild(1393796041635139614)
+        if not guild:
+            print("Guilda não encontrada")
+            return
         canal = guild.get_channel(1394042647693492318)
+        if not canal:
+            print("Canal não encontrado")
+            return
+
+        # Envia ou pega mensagem do ticket
+        # Se quiser mandar só 1x, faça um controle para evitar spam
         embed = discord.Embed(
             title="🎫 Abrir Ticket de Suporte",
             description="Clique no emoji 🎫 abaixo para abrir um ticket com a Staff.",
@@ -48,55 +57,82 @@ class MeuPrimeiroBot(discord.Client):
         )
         msg = await canal.send(embed=embed)
         await msg.add_reaction("🎫")
-        self.ticket_message_id = msg.id  # salva para usar no evento
+        self.ticket_message_id = msg.id
 
-        # Verifica se existe uma categoria para os tickets
+        # Cria categoria Tickets se não existir
         category = discord.utils.get(guild.categories, name="Tickets")
         if not category:
-            # Se não existir, tenta criar a categoria
             try:
-                print("Categoria 'Tickets' não encontrada. Criando...")
                 category = await guild.create_category("Tickets")
-                print("Categoria 'Tickets' criada com sucesso!")
-            except discord.Forbidden:
-                print("O bot não tem permissão para criar a categoria 'Tickets'.")
-                return
+                print("Categoria Tickets criada.")
             except Exception as e:
-                print(f"Erro ao criar a categoria 'Tickets': {e}")
+                print(f"Erro criando categoria Tickets: {e}")
+
+    async def on_raw_reaction_add(self, payload):
+        # Ignora bots
+        if payload.user_id == self.user.id:
+            return
+
+        # Só reage se for a mensagem do ticket e emoji correto
+        if payload.message_id == self.ticket_message_id and str(payload.emoji) == "🎫":
+            guild = self.get_guild(payload.guild_id)
+            if not guild:
+                return
+            member = guild.get_member(payload.user_id)
+            if not member:
                 return
 
-        # Define permissões para o canal do ticket
-        staff_role = discord.utils.get(guild.roles, name="Staff")
-        if not staff_role:
-            print("Cargo 'Staff' não encontrado!")
-            return
+            # Checa se já tem canal aberto
+            existing_channel = discord.utils.get(guild.channels, name=f"ticket-{member.name.lower()}")
+            if existing_channel:
+                try:
+                    await member.send("Você já tem um ticket aberto!")
+                except:
+                    pass
+                return
 
-        overwrites = {
-            guild.default_role: discord.PermissionOverwrite(read_messages=False),
-            staff_role: discord.PermissionOverwrite(read_messages=True, send_messages=True)
-        }
+            # Pega categoria Tickets
+            category = discord.utils.get(guild.categories, name="Tickets")
+            if not category:
+                # Se não tiver, cria
+                category = await guild.create_category("Tickets")
 
-        # Adiciona o botão para fechar o ticket
-        close_button = discord.ui.Button(label="Fechar ticket", style=discord.ButtonStyle.red)
+            # Permissões
+            overwrites = {
+                guild.default_role: discord.PermissionOverwrite(read_messages=False),
+                member: discord.PermissionOverwrite(read_messages=True, send_messages=True),
+                discord.utils.get(guild.roles, name="Staff"): discord.PermissionOverwrite(read_messages=True, send_messages=True)
+            }
 
-        async def close_callback(interaction: discord.Interaction):
-            await channel.delete(reason=f"Ticket fechado por {interaction.user}")
+            # Cria canal
+            channel = await guild.create_text_channel(f"ticket-{member.name}", category=category, overwrites=overwrites)
 
-        close_button.callback = close_callback
-        view = discord.ui.View()
-        view.add_item(close_button)
+            # Cria botão fechar ticket
+            close_button = discord.ui.Button(label="Fechar ticket", style=discord.ButtonStyle.red)
 
-    async def on_member_join(self, member: discord.Member):
-        print(f"Novo membro entrou: {member}")
+            async def close_callback(interaction: discord.Interaction):
+                if interaction.user != member and not interaction.user.guild_permissions.manage_channels:
+                    await interaction.response.send_message("Você não pode fechar este ticket.", ephemeral=True)
+                    return
+                await channel.delete(reason=f"Ticket fechado por {interaction.user}")
 
-        canal_id = 1393807069999530084
-        canal = member.guild.get_channel(canal_id)
-        print(f"Canal obtido: {canal}")
+            close_button.callback = close_callback
+            view = discord.ui.View()
+            view.add_item(close_button)
 
-        if canal is None:
-            print(f"Canal com ID {canal_id} não encontrado no servidor {member.guild.name}")
-            return
+            await channel.send(f"{member.mention} seu ticket foi aberto! Um staff irá te ajudar em breve.", view=view)
 
+
+async def on_member_join(self, member: discord.Member):
+    print(f"Novo membro entrou: {member}")
+
+    canal_id = 1393807069999530084  # Canal fixo de boas-vindas
+    canal = member.guild.get_channel(canal_id)
+    print(f"Canal obtido: {canal}")
+
+    if canal is None:
+        print(f"Canal com ID {canal_id} não encontrado no servidor {member.guild.name}")
+    else:
         if isinstance(canal, discord.TextChannel):
             try:
                 await canal.send(f"👋 Seja bem-vindo(a) ao servidor, {member.mention}!")
@@ -104,14 +140,14 @@ class MeuPrimeiroBot(discord.Client):
             except Exception as e:
                 print(f"Erro ao enviar mensagem no canal de boas-vindas: {e}")
 
-        cargo = discord.utils.get(member.guild.roles, name="Visitant")
-        if cargo:
-            try:
-                await member.add_roles(cargo)
-                print(f"{member} recebeu o cargo {cargo.name} automaticamente.")
-            except Exception as e:
-                print(f"Erro ao adicionar cargo: {e}")
-        
+    cargo = discord.utils.get(member.guild.roles, name="Visitant")
+    if cargo:
+        try:
+            await member.add_roles(cargo)
+            print(f"{member} recebeu o cargo {cargo.name} automaticamente.")
+        except Exception as e:
+            print(f"Erro ao adicionar cargo: {e}")
+
 # Instancia o bot
 bot = MeuPrimeiroBot()
 
@@ -139,6 +175,7 @@ def save_reactions(data):
 @bot.tree.command(name="soma", description="Some dois números distintos")
 @app_commands.describe(numero1="Primeiro número a somar",
                        numero2="Segundo número a somar")
+await interaction.response.defer(thinking=True, ephemeral=True)
 async def somar(interaction: discord.Interaction, numero1: int, numero2: int):
     resultado = numero1 + numero2
     await interaction.response.send_message(f"O número somado é {resultado}.")
@@ -147,6 +184,7 @@ async def somar(interaction: discord.Interaction, numero1: int, numero2: int):
 # Comando /kick
 @bot.tree.command(name="kick", description="Expulsa um usuário do servidor")
 @app_commands.describe(user="Usuário a ser expulso")
+await interaction.response.defer(thinking=True, ephemeral=True)
 async def kick_user(interaction: discord.Interaction, user: discord.Member):
     if user.top_role >= interaction.user.top_role:
         await interaction.response.send_message("Você não pode expulsar/banir alguém com cargo igual ou superior ao seu.", ephemeral=True)
@@ -168,6 +206,7 @@ async def kick_user(interaction: discord.Interaction, user: discord.Member):
 # Comando /ban
 @bot.tree.command(name="ban", description="Bane um usuário do servidor")
 @app_commands.describe(user="Usuário a ser banido")
+await interaction.response.defer(thinking=True, ephemeral=True)
 async def ban_user(interaction: discord.Interaction, user: discord.Member):
     if user.top_role >= interaction.user.top_role:
         await interaction.response.send_message("Você não pode expulsar/banir alguém com cargo igual ou superior ao seu.", ephemeral=True)
@@ -190,6 +229,7 @@ async def ban_user(interaction: discord.Interaction, user: discord.Member):
 @bot.tree.command(name="setrole", description="Atribui um cargo a um usuário")
 @app_commands.describe(user="Usuário que vai receber o cargo",
                        cargo="Cargo a ser atribuído")
+await interaction.response.defer(thinking=True, ephemeral=True)
 async def atribuir_cargo(interaction: discord.Interaction,
                          user: discord.Member, cargo: discord.Role):
     # Verifica se a interação aconteceu em um servidor
@@ -222,6 +262,7 @@ async def atribuir_cargo(interaction: discord.Interaction,
 @bot.tree.command(name="clear",
                   description="Limpa uma quantidade de mensagens no chat")
 @app_commands.describe(amount="Número de mensagens a apagar (máx. 100)")
+await interaction.response.defer(thinking=True, ephemeral=True)
 async def clear(interaction: discord.Interaction, amount: int):
     if not interaction.guild:
         await interaction.response.send_message(
@@ -269,6 +310,7 @@ async def clear(interaction: discord.Interaction, amount: int):
     style="Your fighting style (Sword, Akuma, etc.)",
     origin="How did you find the crew? (Friend, YouTube, etc.)"
 )
+await interaction.response.defer(thinking=True, ephemeral=True)
 async def set_player_info(
     interaction: discord.Interaction,
     name: str,
@@ -310,6 +352,7 @@ async def set_player_info(
     style="New fighting style",
     origin="New origin (how you found the crew)"
 )
+await interaction.response.defer(thinking=True, ephemeral=True)
 async def edit_player_info(
     interaction: discord.Interaction,
     name: str,
@@ -365,6 +408,7 @@ async def player_info(interaction: discord.Interaction, user: discord.Member):
     await interaction.response.send_message(embed=embed, ephemeral=False)
 
 @bot.tree.command(name="recruit", description="chama os recrutadores")
+await interaction.response.defer(thinking=True, ephemeral=True)
 async def recruit(interaction: discord.Interaction):
     await interaction.response.send_message(
         f"@RECRUTADOR, {interaction.user.mention} quer se juntar a tripulação!",
@@ -373,6 +417,7 @@ async def recruit(interaction: discord.Interaction):
 @bot.tree.command(name="mute", description="Muta um usuário")
 @app_commands.describe(user="Usuário a ser mutado",
                        tempo="Tempo de mute em minutos")
+await interaction.response.defer(thinking=True, ephemeral=True)
 async def mute(interaction: discord.Interaction, user: discord.Member,
                tempo: int):
     if not interaction.user.guild_permissions.manage_roles:
@@ -406,6 +451,7 @@ async def mute(interaction: discord.Interaction, user: discord.Member,
 
 
 @bot.tree.command(name="unmute", description="Desmuta um usuário")
+await interaction.response.defer(thinking=True, ephemeral=True)
 @app_commands.describe(user="Usuário a ser desmutado")
 async def unmute(interaction: discord.Interaction, user: discord.Member):
     if not interaction.user.guild_permissions.manage_roles:
