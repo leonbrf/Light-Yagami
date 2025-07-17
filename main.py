@@ -32,12 +32,14 @@ class MeuPrimeiroBot(discord.Client):
         intents.guilds = True
         self.tree = app_commands.CommandTree(self)
         super().__init__(command_prefix="!", intents=intents)
-        bot = commands.Bot(command_prefix="!", intents=intents)
         TICKET_CATEGORY_NAME = "Tickets"
         TICKET_MESSAGE_ID = None  # Salvará o ID da mensagem de criar ticket
 
+bot = MeuPrimeiroBot()
+
     async def setup_hook(self):
         await self.tree.sync()
+        print("Comandos sincronizados!")
 
 class TicketView(discord.ui.View):
     def __init__(self):
