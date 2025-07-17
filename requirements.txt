@@ -3,4 +3,4 @@ aiohttp
 discord-py
 python-dotenv
 flask
-tinydb
+pymongo[srv]
