@@ -11,16 +11,13 @@ from discord import Embed, Interaction
 import os
 from keep_alive import keep_alive
 from tinydb import TinyDB, Query
+from tinydb.operations import set
 
-# Cria ou abre o arquivo de banco de dados
-db = TinyDB("database.json")
+# Criação dos bancos
+players_db = TinyDB("players_db.json")
+reaction_roles_db = TinyDB("reaction_roles_db.json")
 
-# Caminho do arquivo de dados
-DATA_FILE = "players.json"
-REACTION_FILE = "reaction_roles.json"
-
-# Funções utilitárias para JSON
-
+Player = Query()
 
 def load_data():
     if os.path.exists(DATA_FILE):
@@ -283,85 +280,116 @@ async def clear(interaction: discord.Interaction, amount: int):
     except Exception as e:
         await interaction.followup.send(f"Ocorreu um erro: {e}",
                                         ephemeral=True)
-
-# Comando /setplayerinfo
-@bot.tree.command(name="setplayerinfo",
-                  description="Define suas informações de jogador")
-@app_commands.describe(nome="Seu nome",
-                       fruta="Sua fruta",
-                       level="Seu nível (até 625)")
-async def set_player_info(interaction: discord.Interaction, nome: str,
-                          fruta: str, level: int):
+# /setplayerinfo
+@bot.tree.command(name="setplayerinfo", description="Cadastra suas informações de jogador")
+@app_commands.describe(
+    nome="Seu nome",
+    fruta="Sua fruta",
+    level="Seu nível (até 625)",
+    plataforma="Sua plataforma (PC, Mobile, Console...)",
+    estilo="Seu estilo de luta (Espada, Akuma...)",
+    origem="Por onde conheceu a crew (Amigo, YouTube, etc.)"
+)
+async def set_player_info(
+    interaction: discord.Interaction,
+    nome: str,
+    fruta: str,
+    level: int,
+    plataforma: str,
+    estilo: str,
+    origem: str
+):
     user_id = str(interaction.user.id)
-    if user_id in player_data:
-        await interaction.response.send_message(
-            "Você já cadastrou suas informações. Use /editarplayerinfo para atualizar.",
-            ephemeral=True)
+
+    if players_db.contains(Player.id == user_id):
+        await interaction.response.send_message("Você já cadastrou. Use /editplayerinfo para editar.", ephemeral=True)
         return
+
     if level > 625 or level < 1:
-        await interaction.response.send_message(
-            "O nível deve estar entre 1 e 625.", ephemeral=True)
+        await interaction.response.send_message("Nível deve ser entre 1 e 625.", ephemeral=True)
         return
-    player_data[user_id] = {"nome": nome, "fruta": fruta, "level": level}
-    save_data(player_data)
-    await interaction.response.send_message("Informações salvas com sucesso!",
-                                            ephemeral=True)
-player_data = load_players()
-save_players(player_data)
-    
 
+    players_db.insert({
+        "id": user_id,
+        "nome": nome,
+        "fruta": fruta,
+        "level": level,
+        "plataforma": plataforma,
+        "estilo": estilo,
+        "origem": origem
+    })
 
-# Comando /editplayerinfo
-@bot.tree.command(name="editplayerinfo",
-                  description="Edita suas informações de jogador")
-@app_commands.describe(nome="Novo nome",
-                       fruta="Nova fruta",
-                       level="Novo nível (até 625)")
-async def editar_player_info(interaction: discord.Interaction, nome: str,
-                             fruta: str, level: int):
+    await interaction.response.send_message("Informações salvas com sucesso!", ephemeral=True)
+
+# /editplayerinfo
+@bot.tree.command(name="editplayerinfo", description="Edita suas informações de jogador")
+@app_commands.describe(
+    nome="Novo nome",
+    fruta="Nova fruta",
+    level="Novo nível (até 625)",
+    plataforma="Nova plataforma (PC, Mobile, Console...)",
+    estilo="Novo estilo de luta",
+    origem="Nova origem (como conheceu a crew)"
+)
+async def editar_player_info(
+    interaction: discord.Interaction,
+    nome: str,
+    fruta: str,
+    level: int,
+    plataforma: str,
+    estilo: str,
+    origem: str
+):
     user_id = str(interaction.user.id)
-    if user_id not in player_data:
-        await interaction.response.send_message(
-            "Você ainda não cadastrou suas informações. Use /setplayerinfo.",
-            ephemeral=True)
+
+    if not players_db.contains(Player.id == user_id):
+        await interaction.response.send_message("Você ainda não cadastrou. Use /setplayerinfo.", ephemeral=True)
         return
+
     if level > 625 or level < 1:
-        await interaction.response.send_message(
-            "O nível deve estar entre 1 e 625.", ephemeral=True)
+        await interaction.response.send_message("Nível deve ser entre 1 e 625.", ephemeral=True)
         return
-    player_data[user_id] = {"nome": nome, "fruta": fruta, "level": level}
-    save_data(player_data)
-    await interaction.response.send_message(
-        "Informações atualizadas com sucesso!", ephemeral=True)
-    player_data = load_players()
-    save_players(player_data)
 
+    players_db.update({
+        "nome": nome,
+        "fruta": fruta,
+        "level": level,
+        "plataforma": plataforma,
+        "estilo": estilo,
+        "origem": origem
+    }, Player.id == user_id)
 
-# Comando /playerinfo
-@bot.tree.command(name="playerinfo",
-                  description="Veja as informações de outro jogador")
+    await interaction.response.send_message("Informações atualizadas com sucesso!", ephemeral=True)
+
+# /playerinfo
+@bot.tree.command(name="playerinfo", description="Veja as informações de outro jogador")
 @app_commands.describe(user="Usuário para ver as informações")
 async def player_info(interaction: discord.Interaction, user: discord.Member):
     user_id = str(user.id)
-    data = player_data.get(user_id)
-    if not data:
-        await interaction.response.send_message(
-            "Este usuário ainda não cadastrou informações.", ephemeral=True)
-        return
-    embed = discord.Embed(title=f"Informações de {user.display_name}",
-                          color=discord.Color.blue())
-    embed.add_field(name="Nome", value=data["nome"], inline=False)
-    embed.add_field(name="Fruta", value=data["fruta"], inline=False)
-    embed.add_field(name="Level", value=data["level"], inline=False)
-    await interaction.response.send_message(embed=embed, ephemeral=False)
+    data = players_db.get(Player.id == user_id)
 
+    if not data:
+        await interaction.response.send_message("Este usuário ainda não cadastrou informações.", ephemeral=True)
+        return
+
+    embed = discord.Embed(
+        title=f"Informações de {user.display_name}",
+        color=discord.Color.blurple()
+    )
+    embed.add_field(name="Nome", value=data["nome"], inline=True)
+    embed.add_field(name="Fruta", value=data["fruta"], inline=True)
+    embed.add_field(name="Nível / Level", value=data["level"], inline=True)
+    embed.add_field(name="Plataforma / Platform", value=data["plataforma"], inline=True)
+    embed.add_field(name="Estilo de Luta / Fighting Style", value=data["estilo"], inline=True)
+    embed.add_field(name="Origem / Where Found Crew", value=data["origem"], inline=False)
+
+    await interaction.response.send_message(embed=embed, ephemeral=False)
 
 @bot.tree.command(name="recruit", description="chama os recrutadores")
 async def recruit(interaction: discord.Interaction):
     await interaction.response.send_message(
         f"@RECRUTADOR, {interaction.user.mention} quer se juntar a tripulação!",
         ephemeral=False)
-
 
 @bot.tree.command(name="mute", description="Muta um usuário")
 @app_commands.describe(user="Usuário a ser mutado",
