@@ -32,6 +32,8 @@ TICKET_MESSAGE_ID = None  # Salvará o ID da mensagem de criar ticket
 
 class MeuPrimeiroBot(discord.Client):
 
+bot = MeuPrimeiroBot()
+
     def __init__(self):
         intents = discord.Intents.default()
         intents.members = True
@@ -44,8 +46,6 @@ class MeuPrimeiroBot(discord.Client):
     async def setup_hook(self):
         await self.tree.sync()
         print("Comandos sincronizados!")
-
-bot = MeuPrimeiroBot()
 
 class TicketView(discord.ui.View):
     def __init__(self):
