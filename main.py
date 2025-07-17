@@ -111,7 +111,6 @@ class TicketView(discord.ui.View):
     def __init__(self, ticket_category_name):
         super().__init__(timeout=None)
         self.add_item(CreateTicketButton(ticket_category_name))
-        bot.add_view(TicketView(bot.TICKET_CATEGORY_NAME))
 
 @bot.tree.command(name="ticket", description="Send the button to open a ticket")
 async def ticket_command(interaction: discord.Interaction):
@@ -125,8 +124,8 @@ async def ticket_command(interaction: discord.Interaction):
 @bot.event
 async def on_ready():
     print(f"{bot.user} está online.")
-    bot.add_view(TicketView())  # Adiciona view para o botão mesmo após reiniciar
-
+    bot.add_view(TicketView(ticket_category_name=bot.TICKET_CATEGORY_NAME))
+    
     guild = bot.get_guild(1393796041635139614)  # Coloque seu ID de servidor
     canal = guild.get_channel(1394042647693492318)  # Coloque seu ID de canal
 
@@ -136,10 +135,10 @@ async def on_ready():
             description="Clique no botão abaixo para abrir um ticket com a equipe.",
             color=discord.Color.green()
         )
-        await canal.send(embed=embed, view=TicketView())
+        await canal.send(embed=embed, view=TicketView(ticket_category_name=bot.TICKET_CATEGORY_NAME))
     else:
         print("Canal de ticket não encontrado.")
-        bot.add_view(TicketView())  # Agora é persistente e não dará erro
+        bot.add_view(TicketView(ticket_category_name=bot.TICKET_CATEGORY_NAME))  # Agora é persistente e não dará erro
 
 
 # Comando /soma
