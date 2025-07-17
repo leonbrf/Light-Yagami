@@ -177,7 +177,6 @@ def save_reactions(data):
 @bot.tree.command(name="soma", description="Some dois números distintos")
 @app_commands.describe(numero1="Primeiro número a somar",
                        numero2="Segundo número a somar")
-await interaction.response.defer(thinking=True, ephemeral=True)
 async def somar(interaction: discord.Interaction, numero1: int, numero2: int):
     resultado = numero1 + numero2
     await interaction.response.send_message(f"O número somado é {resultado}.")
