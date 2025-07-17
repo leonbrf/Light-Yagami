@@ -37,7 +37,6 @@ class MeuPrimeiroBot(discord.Client):
         intents.members = True
         intents.message_content = True
         intents.guilds = True
-        self.tree = app_commands.CommandTree(self)
         super().__init__(command_prefix="!", intents=intents)
         TICKET_CATEGORY_NAME = "Tickets"
     
