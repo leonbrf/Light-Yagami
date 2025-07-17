@@ -68,7 +68,7 @@ async def on_ready(self):
             except Exception as e:
                 print(f"Erro criando categoria Tickets: {e}")
 
-    async def on_raw_reaction_add(self, payload):
+async def on_raw_reaction_add(self, payload):
         # Ignora bots
         if payload.user_id == self.user.id:
             return
@@ -121,6 +121,8 @@ async def on_ready(self):
             view.add_item(close_button)
 
             await channel.send(f"{member.mention} seu ticket foi aberto! Um staff irá te ajudar em breve.", view=view)
+
+
 
 
 async def on_member_join(self, member: discord.Member):
