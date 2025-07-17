@@ -495,102 +495,63 @@ async def embed(interaction: discord.Interaction, descricao: str, titulo: str = 
     message="ID da mensagem onde as reações serão usadas",
     emoji="Emoji para a reação",
     role="Cargo a ser atribuído")
-async def reaction_role(interaction: discord.Interaction, message: str, emoji: str, role: discord.Role):
+@bot.tree.command(name="setreactionrole", description="Create a reaction role message")
+@app_commands.checks.has_permissions(administrator=True)
+@app_commands.describe(
+    channel="Channel to send the reaction role message",
+    message="Message content",
+    emoji="Emoji to react with",
+    role="Role to assign when reacted"
+)
+async def set_reaction_role(
+    interaction: discord.Interaction,
+    channel: discord.TextChannel,
+    message: str,
+    emoji: str,
+    role: discord.Role
+):
+    sent_message = await channel.send(message)
+    await sent_message.add_reaction(emoji)
 
-    if not interaction.user.guild_permissions.manage_roles:
-        await interaction.response.send_message(
-            "Você não tem permissão para configurar reaction roles.", ephemeral=True)
-        return
+    # Save to DB
+    reaction_db.insert({
+        "message_id": sent_message.id,
+        "channel_id": channel.id,
+        "emoji": emoji,
+        "role_id": role.id
+    })
 
-    try:
-        # ✅ Corrigido: usa os arquivos corretos
-        reaction_roles = load_reactions()
-        if "reaction_roles" not in reaction_roles:
-            reaction_roles["reaction_roles"] = []
-
-        reaction_roles["reaction_roles"].append({
-            "message_id": message,
-            "emoji": emoji,
-            "role_id": role.id
-        })
-        save_reactions(reaction_roles)
-        await interaction.response.send_message(
-            f"Reaction role configurado com sucesso! Quando alguém reagir com {emoji}, será atribuído o cargo {role.name}.",
-            ephemeral=True)
-    except Exception as e:
-        await interaction.response.send_message(f"Erro ao configurar o reaction role: {e}", ephemeral=True)
-    # Tenta adicionar o emoji automaticamente na mensagem
-    canal = interaction.channel  # você pode melhorar isso se quiser pegar por ID
-    try:
-        mensagem = await canal.fetch_message(int(message))
-        await mensagem.add_reaction(emoji)
-    except Exception as e:
-        await interaction.followup.send(f"⚠️ Erro ao adicionar o emoji na mensagem: {e}", ephemeral=True)
+    await interaction.response.send_message("Reaction role message sent and saved!", ephemeral=True)
 
 @bot.event
-async def on_raw_reaction_add(payload: discord.RawReactionActionEvent):
-    if payload.user_id == bot.user.id:  # Ignorar reações do bot
+async def on_raw_reaction_add(payload):
+    if payload.member.bot:
         return
 
-    guild = bot.get_guild(payload.guild_id)
-    if not guild:
-        return
+    for entry in reaction_db:
+        if (entry["message_id"] == payload.message_id and entry["emoji"] == str(payload.emoji)):
+            guild = bot.get_guild(payload.guild_id)
+            role = guild.get_role(entry["role_id"])
+            member = guild.get_member(payload.user_id)
+            if role and member:
+                await member.add_roles(role)
+            break
 
-    member = guild.get_member(payload.user_id)
-    if not member:
-        return
+@bot.event
+async def on_raw_reaction_remove(payload):
+    for entry in reaction_db:
+        if (entry["message_id"] == payload.message_id and entry["emoji"] == str(payload.emoji)):
+            guild = bot.get_guild(payload.guild_id)
+            role = guild.get_role(entry["role_id"])
+            member = guild.get_member(payload.user_id)
+            if role and member:
+                await member.remove_roles(role)
+            break
 
-    # 🎫 Sistema de Ticket
-    if payload.message_id == bot.ticket_message_id and str(payload.emoji) == "🎫":
-        channel_name = f"ticket-{member.name}".lower()
-        existing_channel = discord.utils.get(guild.channels, name=channel_name)
-        if existing_channel:
-            await member.send(f"📩 Você já tem um ticket aberto: {existing_channel.mention}")
-            return
-
-        category = discord.utils.get(guild.categories, name="Tickets")
-        if not category:
-            category = await guild.create_category("Tickets")
-
-        staff_role = discord.utils.get(guild.roles, name="Staff")
-        if not staff_role:
-            print("Cargo 'Staff' não encontrado!")
-            return
-
-        overwrites = {
-            guild.default_role: discord.PermissionOverwrite(read_messages=False),
-            member: discord.PermissionOverwrite(read_messages=True, send_messages=True),
-            staff_role: discord.PermissionOverwrite(read_messages=True, send_messages=True),
-        }
-
-        channel = await guild.create_text_channel(channel_name, overwrites=overwrites, category=category)
-
-        close_button = discord.ui.Button(label="Fechar ticket", style=discord.ButtonStyle.red)
-
-        async def close_callback(interaction: discord.Interaction):
-            await channel.delete(reason=f"Ticket fechado por {interaction.user}")
-
-        close_button.callback = close_callback
-        view = discord.ui.View()
-        view.add_item(close_button)
-
-        await channel.send(f"{member.mention} Obrigado por abrir o ticket! Um membro da staff irá te atender em breve.", view=view)
-
-    # 🎭 Reaction Roles
-    reaction_roles = load_reactions()
-    if "reaction_roles" in reaction_roles:
-        for role_data in reaction_roles["reaction_roles"]:
-            if str(payload.message_id) == str(role_data["message_id"]) and str(payload.emoji) == role_data["emoji"]:
-                role = guild.get_role(role_data["role_id"])
-                if role:
-                    await member.add_roles(role, reason="Reaction role")
-                    print(f"Cargo {role.name} atribuído a {member.name}.")
-
-intents = discord.Intents.default()
-intents.message_content = True  # Se o bot lê mensagens
-
-bot = commands.Bot(command_prefix='!', intents=intents)
-
+@set_reaction_role.error
+async def set_reaction_role_error(interaction, error):
+    if isinstance(error, app_commands.errors.MissingPermissions):
+        await interaction.response.send_message("You need to be an administrator to use this command!", ephemeral=True)
 
 @bot.event
 async def on_ready():
