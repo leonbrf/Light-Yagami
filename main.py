@@ -21,8 +21,6 @@ reaction_roles_db = TinyDB(REACTION_FILE)
 
 Player = Query()
 
-player_data = load_data()
-
 class MeuPrimeiroBot(discord.Client):
 
     def __init__(self):
