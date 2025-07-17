@@ -25,10 +25,10 @@ try:
 except Exception as e:
     print(e)
 
-client = MongoClient(uri, server_api=ServerApi('1'))
 db = client["Light"]  # nome do banco
 players = db["players"]  # coleção players
 reaction_roles = db["reaction_roles"]  # coleção reaction roles
+TICKET_MESSAGE_ID = None  # Salvará o ID da mensagem de criar ticket
 
 class MeuPrimeiroBot(discord.Client):
 
@@ -40,13 +40,12 @@ class MeuPrimeiroBot(discord.Client):
         self.tree = app_commands.CommandTree(self)
         super().__init__(command_prefix="!", intents=intents)
         TICKET_CATEGORY_NAME = "Tickets"
-        TICKET_MESSAGE_ID = None  # Salvará o ID da mensagem de criar ticket
-
-bot = MeuPrimeiroBot()
-
+    
     async def setup_hook(self):
         await self.tree.sync()
         print("Comandos sincronizados!")
+
+bot = MeuPrimeiroBot()
 
 class TicketView(discord.ui.View):
     def __init__(self):
@@ -493,8 +492,6 @@ async def on_raw_reaction_remove(payload):
 async def set_reaction_role_error(interaction, error):
     if isinstance(error, app_commands.errors.MissingPermissions):
         await interaction.response.send_message("You need to be an administrator to use this command!", ephemeral=True)
-
-keep_alive()
 
 # Token do bot
 bot.run(os.getenv("DISCORD_TOKEN"))
