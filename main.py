@@ -185,7 +185,6 @@ async def somar(interaction: discord.Interaction, numero1: int, numero2: int):
 @bot.tree.command(name="kick", description="Expulsa um usuário do servidor")
 @app_commands.describe(user="Usuário a ser expulso")
 async def kick_user(interaction: discord.Interaction, user: discord.Member):
-    await interaction.response.defer(thinking=True, ephemeral=True)
     if user.top_role >= interaction.user.top_role:
         await interaction.response.send_message("Você não pode expulsar/banir alguém com cargo igual ou superior ao seu.", ephemeral=True)
         return
@@ -229,7 +228,6 @@ async def ban_user(interaction: discord.Interaction, user: discord.Member):
 @app_commands.describe(user="Usuário que vai receber o cargo",
                        cargo="Cargo a ser atribuído")
 async def atribuir_cargo(interaction: discord.Interaction, user: discord.Member, cargo: discord.Role):
-    await interaction.response.defer(thinking=True, ephemeral=True)
     # Verifica se a interação aconteceu em um servidor
     if interaction.guild is None:
         await interaction.response.send_message(
@@ -261,7 +259,6 @@ async def atribuir_cargo(interaction: discord.Interaction, user: discord.Member,
                   description="Limpa uma quantidade de mensagens no chat")
 @app_commands.describe(amount="Número de mensagens a apagar (máx. 100)")
 async def clear(interaction: discord.Interaction, amount: int):
-    await interaction.response.defer(thinking=True, ephemeral=True)
     if not interaction.guild:
         await interaction.response.send_message(
             "Este comando só pode ser usado em servidores.", ephemeral=True)
@@ -317,7 +314,6 @@ async def set_player_info(
     style: str,
     origin: str
 ):
-    await interaction.response.defer(thinking=True, ephemeral=True)
     user_id = str(interaction.user.id)
 
     if players_db.contains(Player.id == user_id):
@@ -359,7 +355,6 @@ async def edit_player_info(
     style: str,
     origin: str
 ):
-    await interaction.response.defer(thinking=True, ephemeral=True)
     user_id = str(interaction.user.id)
 
     if not players_db.contains(Player.id == user_id):
@@ -407,7 +402,6 @@ async def player_info(interaction: discord.Interaction, user: discord.Member):
 
 @bot.tree.command(name="recruit", description="chama os recrutadores")
 async def recruit(interaction: discord.Interaction):
-    await interaction.response.defer(thinking=True, ephemeral=True)
     await interaction.response.send_message(
         f"@RECRUTADOR, {interaction.user.mention} quer se juntar a tripulação!",
         ephemeral=False)
@@ -416,7 +410,6 @@ async def recruit(interaction: discord.Interaction):
 @app_commands.describe(user="Usuário a ser mutado",
                        tempo="Tempo de mute em minutos")
 async def mute(interaction: discord.Interaction, user: discord.Member, tempo: int):
-    await interaction.response.defer(thinking=True, ephemeral=True)
     if not interaction.user.guild_permissions.manage_roles:
         await interaction.response.send_message(
             "❌ Você não tem permissão para usar este comando.", ephemeral=True)
@@ -450,7 +443,6 @@ async def mute(interaction: discord.Interaction, user: discord.Member, tempo: in
 @bot.tree.command(name="unmute", description="Desmuta um usuário")
 @app_commands.describe(user="Usuário a ser desmutado")
 async def unmute(interaction: discord.Interaction, user: discord.Member):
-    await interaction.response.defer(thinking=True, ephemeral=True)
     if not interaction.user.guild_permissions.manage_roles:
         await interaction.response.send_message(
             "❌ Você não tem permissão para usar este comando.", ephemeral=True)
