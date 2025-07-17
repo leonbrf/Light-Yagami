@@ -19,6 +19,8 @@ REACTION_FILE = "reaction_roles_db.json"
 players_db = TinyDB(DATA_FILE)
 reaction_roles_db = TinyDB(REACTION_FILE)
 
+reaction_db = TinyDB("reaction_db.json")
+
 Player = Query()
 
 class MeuPrimeiroBot(discord.Client):
