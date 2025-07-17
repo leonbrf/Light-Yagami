@@ -30,9 +30,6 @@ reaction_roles = db["reaction_roles"]  # coleção reaction roles
 TICKET_MESSAGE_ID = None  # Salvará o ID da mensagem de criar ticket
 
 class MeuPrimeiroBot(commands.Bot):
-# Agora fora da classe:
-bot = MeuPrimeiroBot()
-    
     def __init__(self):
         intents = discord.Intents.default()
         intents.message_content = True
@@ -68,9 +65,9 @@ class CreateTicketButton(discord.ui.Button):
             await interaction.response.send_message("Você já tem um ticket aberto!", ephemeral=True)
             return
 
-        category = discord.utils.get(guild.categories, name=TICKET_CATEGORY_NAME)
+        category = discord.utils.get(guild.categories, name=self.TICKET_CATEGORY_NAME)
         if not category:
-            category = await guild.create_category(TICKET_CATEGORY_NAME)
+            category = await guild.create_category(self.TICKET_CATEGORY_NAME)
 
         overwrites = {
             guild.default_role: discord.PermissionOverwrite(read_messages=False),
@@ -111,6 +108,8 @@ class CloseTicketButton(discord.ui.Button):
             return
 
         await interaction.channel.delete(reason=f"Ticket fechado por {interaction.user}")
+
+bot = MeuPrimeiroBot()
 
 @bot.event
 async def on_ready():
@@ -498,7 +497,4 @@ async def set_reaction_role_error(interaction, error):
 
 # Token do bot
 bot.run(os.getenv("DISCORD_TOKEN"))
-if not token:
-    print("DISCORD_TOKEN not set!")
-    exit(1)
-bot.run(token)
+
