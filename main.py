@@ -32,8 +32,6 @@ TICKET_MESSAGE_ID = None  # Salvará o ID da mensagem de criar ticket
 
 class MeuPrimeiroBot(discord.Client):
 
-bot = MeuPrimeiroBot()
-
     def __init__(self):
         intents = discord.Intents.default()
         intents.members = True
@@ -109,6 +107,8 @@ class CloseTicketButton(discord.ui.Button):
             return
 
         await interaction.channel.delete(reason=f"Ticket fechado por {interaction.user}")
+
+bot = MeuPrimeiroBot()
 
 @bot.event
 async def on_ready():
