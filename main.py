@@ -30,13 +30,13 @@ class MeuPrimeiroBot(discord.Client):
         intents.members = True
         intents.message_content = True
         intents.guilds = True
-        super().__init__(intents=intents)
         self.tree = app_commands.CommandTree(self)
         self.ticket_message_id = None  # inicializa aqui
+        super().__init__(command_prefix="!", intents=intents)
 
     async def setup_hook(self):
         await self.tree.sync()
-async def on_ready(self):
+    async def on_ready(self):
         print(f"O Bot {self.user} foi ligado com sucesso.")
         guild = self.get_guild(1393796041635139614)
         if not guild:
@@ -67,7 +67,7 @@ async def on_ready(self):
             except Exception as e:
                 print(f"Erro criando categoria Tickets: {e}")
 
-async def on_raw_reaction_add(self, payload):
+    async def on_raw_reaction_add(self, payload):
         # Ignora bots
         if payload.user_id == self.user.id:
             return
@@ -124,30 +124,30 @@ async def on_raw_reaction_add(self, payload):
 
 
 
-async def on_member_join(self, member: discord.Member):
-    print(f"Novo membro entrou: {member}")
+    async def on_member_join(self, member: discord.Member):
+        print(f"Novo membro entrou: {member}")
 
-    canal_id = 1393807069999530084  # Canal fixo de boas-vindas
-    canal = member.guild.get_channel(canal_id)
-    print(f"Canal obtido: {canal}")
+        canal_id = 1393807069999530084  # Canal fixo de boas-vindas
+        canal = member.guild.get_channel(canal_id)
+        print(f"Canal obtido: {canal}")
 
-    if canal is None:
-        print(f"Canal com ID {canal_id} não encontrado no servidor {member.guild.name}")
-    else:
-        if isinstance(canal, discord.TextChannel):
+        if canal is None:
+            print(f"Canal com ID {canal_id} não encontrado no servidor {member.guild.name}")
+        else:
+            if isinstance(canal, discord.TextChannel):
+                try:
+                    await canal.send(f"👋 Seja bem-vindo(a) ao servidor, {member.mention}!")
+                    print(f"Mensagem de boas-vindas enviada para {member.name}")
+                except Exception as e:
+                    print(f"Erro ao enviar mensagem no canal de boas-vindas: {e}")
+
+        cargo = discord.utils.get(member.guild.roles, name="Visitant")
+        if cargo:
             try:
-                await canal.send(f"👋 Seja bem-vindo(a) ao servidor, {member.mention}!")
-                print(f"Mensagem de boas-vindas enviada para {member.name}")
+                await member.add_roles(cargo)
+                print(f"{member} recebeu o cargo {cargo.name} automaticamente.")
             except Exception as e:
-                print(f"Erro ao enviar mensagem no canal de boas-vindas: {e}")
-
-    cargo = discord.utils.get(member.guild.roles, name="Visitant")
-    if cargo:
-        try:
-            await member.add_roles(cargo)
-            print(f"{member} recebeu o cargo {cargo.name} automaticamente.")
-        except Exception as e:
-            print(f"Erro ao adicionar cargo: {e}")
+                print(f"Erro ao adicionar cargo: {e}")
 
 # Instancia o bot
 bot = MeuPrimeiroBot()
