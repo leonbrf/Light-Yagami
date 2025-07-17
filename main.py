@@ -43,18 +43,14 @@ class MeuPrimeiroBot(commands.Bot):
         await self.tree.sync()
         print("Comandos sincronizados!")
 
-class TicketView(discord.ui.View):
-    def __init__(self):
-        super().__init__(timeout=None)
-        self.add_item(CreateTicketButton())
-
 class CreateTicketButton(discord.ui.Button):
-    def __init__(self):
+    def __init__(self, ticket_category_name):
         super().__init__(
-            label="🎫 Abrir Ticket",
+            label="🎫 Open Ticket",
             style=discord.ButtonStyle.green,
-            custom_id="abrir_ticket"  # Adicionado para persistência
+            custom_id="open_ticket"
         )
+        self.TICKET_CATEGORY_NAME = ticket_category_name
 
     async def callback(self, interaction: discord.Interaction):
         guild = interaction.guild
@@ -62,7 +58,7 @@ class CreateTicketButton(discord.ui.Button):
 
         existing = discord.utils.get(guild.text_channels, name=f"ticket-{member.name.lower()}")
         if existing:
-            await interaction.response.send_message("Você já tem um ticket aberto!", ephemeral=True)
+            await interaction.response.send_message("You already have an open ticket!", ephemeral=True)
             return
 
         category = discord.utils.get(guild.categories, name=self.TICKET_CATEGORY_NAME)
@@ -85,30 +81,44 @@ class CreateTicketButton(discord.ui.Button):
         )
 
         view = CloseTicketView(member=member)
-        await channel.send(f"{member.mention}, seu ticket foi aberto!", view=view)
-        await interaction.response.send_message(f"Ticket criado: {channel.mention}", ephemeral=True)
+        await channel.send(f"{member.mention}, your ticket has been opened!", view=view)
+        await interaction.response.send_message(f"Ticket created: {channel.mention}", ephemeral=True)
+
+class CloseTicketButton(discord.ui.Button):
+    def __init__(self, member):
+        super().__init__(
+            label="Close Ticket",
+            style=discord.ButtonStyle.red,
+            custom_id=f"close_ticket_{member.id}"
+        )
+        self.member = member
+
+    async def callback(self, interaction: discord.Interaction):
+        if interaction.user != self.member and not interaction.user.guild_permissions.manage_channels:
+            await interaction.response.send_message("You are not allowed to close this ticket.", ephemeral=True)
+            return
+
+        await interaction.channel.delete(reason=f"Ticket closed by {interaction.user}")
 
 class CloseTicketView(discord.ui.View):
     def __init__(self, member):
         super().__init__(timeout=None)
         self.add_item(CloseTicketButton(member))
 
-class CloseTicketButton(discord.ui.Button):
-    def __init__(self, member):
-        super().__init__(
-            label="Fechar Ticket",
-            style=discord.ButtonStyle.red,
-            custom_id=f"fechar_ticket_{member.id}"  # Precisa ter custom_id único
-        )
-        self.member = member
+class TicketView(discord.ui.View):
+    def __init__(self, ticket_category_name):
+        super().__init__(timeout=None)
+        self.add_item(CreateTicketButton(ticket_category_name))
 
-    async def callback(self, interaction: discord.Interaction):
-        if interaction.user != self.member and not interaction.user.guild_permissions.manage_channels:
-            await interaction.response.send_message("Você não pode fechar este ticket.", ephemeral=True)
-            return
-
-        await interaction.channel.delete(reason=f"Ticket fechado por {interaction.user}")
-
+@bot.tree.command(name="ticket", description="Send the button to open a ticket")
+async def ticket_command(interaction: discord.Interaction):
+    view = TicketView(ticket_category_name="Tickets")  # Change "Tickets" if you want a different category name
+    await interaction.response.send_message(
+        "Click the button below to open a ticket:",
+        view=view,
+        ephemeral=False
+    )
+    
 bot = MeuPrimeiroBot()
 
 @bot.event
