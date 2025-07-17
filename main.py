@@ -553,11 +553,6 @@ async def set_reaction_role_error(interaction, error):
     if isinstance(error, app_commands.errors.MissingPermissions):
         await interaction.response.send_message("You need to be an administrator to use this command!", ephemeral=True)
 
-@bot.event
-async def on_ready():
-    print(f'Bot {bot.user} está online!')
-
-
 keep_alive()
 
 # Token do bot
