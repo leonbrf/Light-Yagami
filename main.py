@@ -9,7 +9,6 @@ from PIL import Image, ImageDraw, ImageFont
 import aiohttp
 from discord import Embed, Interaction
 import os
-from keep_alive import keep_alive
 from pymongo.mongo_client import MongoClient
 from pymongo.server_api import ServerApi
 from pymongo import ReturnDocument
@@ -30,20 +29,22 @@ players = db["players"]  # coleção players
 reaction_roles = db["reaction_roles"]  # coleção reaction roles
 TICKET_MESSAGE_ID = None  # Salvará o ID da mensagem de criar ticket
 
-class MeuPrimeiroBot(discord.Client):
-
+class MeuPrimeiroBot(commands.Bot):
     def __init__(self):
         intents = discord.Intents.default()
-        intents.members = True
         intents.message_content = True
+        intents.members = True
         intents.guilds = True
+
         super().__init__(command_prefix="!", intents=intents)
-        TICKET_CATEGORY_NAME = "Tickets"
-    
+        self.TICKET_CATEGORY_NAME = "Tickets"
+
     async def setup_hook(self):
         await self.tree.sync()
         print("Comandos sincronizados!")
 
+# Agora fora da classe:
+bot = MeuPrimeiroBot()
 class TicketView(discord.ui.View):
     def __init__(self):
         super().__init__(timeout=None)
@@ -107,7 +108,6 @@ class CloseTicketButton(discord.ui.Button):
 
         await interaction.channel.delete(reason=f"Ticket fechado por {interaction.user}")
 
-bot = MeuPrimeiroBot()
 
 @bot.event
 async def on_ready():
