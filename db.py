@@ -4,6 +4,7 @@ db = TinyDB("db.json")
 
 Players = db.table("players")
 ReactionRoles = db.table("reaction_roles")
+
 PlayerQuery = Query()
 RoleQuery = Query()
 
@@ -26,11 +27,11 @@ def deletar_jogador(user_id):
     Players.remove(PlayerQuery.user_id == str(user_id))
 
 def adicionar_reaction_role(message_id, emoji, role_id):
-    ReactionRoles.insert({
+    ReactionRoles.upsert({
         "message_id": str(message_id),
         "emoji": emoji,
         "role_id": int(role_id)
-    })
+    }, (RoleQuery.message_id == str(message_id)) & (RoleQuery.emoji == emoji))
 
 def listar_reaction_roles():
     return ReactionRoles.all()
