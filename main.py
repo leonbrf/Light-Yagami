@@ -111,6 +111,7 @@ class TicketView(discord.ui.View):
     def __init__(self, ticket_category_name):
         super().__init__(timeout=None)
         self.add_item(CreateTicketButton(ticket_category_name))
+        bot.add_view(TicketView(bot.TICKET_CATEGORY_NAME))
 
 @bot.tree.command(name="ticket", description="Send the button to open a ticket")
 async def ticket_command(interaction: discord.Interaction):
