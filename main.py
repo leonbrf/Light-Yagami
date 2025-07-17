@@ -558,8 +558,11 @@ async def on_raw_reaction_add(payload: discord.RawReactionActionEvent):
                     await member.add_roles(role, reason="Reaction role")
                     print(f"Cargo {role.name} atribuído a {member.name}.")
 
+intents = discord.Intents.default()
+intents.message_content = True  # Se o bot lê mensagens
 
-bot = commands.Bot(command_prefix='!')
+bot = commands.Bot(command_prefix='!', intents=intents)
+
 
 @bot.event
 async def on_ready():
