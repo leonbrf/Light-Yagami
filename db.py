@@ -7,12 +7,15 @@ ReactionRoles = db.table("reaction_roles")
 PlayerQuery = Query()
 RoleQuery = Query()
 
-def salvar_jogador(user_id, nome, fruta, level):
+def salvar_jogador(user_id, nome, fruta, level, plataforma, estilo_luta, origem):
     Players.upsert({
         "user_id": str(user_id),
         "nome": nome,
         "fruta": fruta,
-        "level": level
+        "level": level,
+        "plataforma": plataforma,
+        "estilo_luta": estilo_luta,
+        "origem": origem
     }, PlayerQuery.user_id == str(user_id))
 
 def buscar_jogador(user_id):
