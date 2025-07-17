@@ -43,6 +43,8 @@ class MeuPrimeiroBot(commands.Bot):
         await self.tree.sync()
         print("Comandos sincronizados!")
 
+bot = MeuPrimeiroBot()
+
 class CreateTicketButton(discord.ui.Button):
     def __init__(self, ticket_category_name):
         super().__init__(
@@ -118,8 +120,6 @@ async def ticket_command(interaction: discord.Interaction):
         view=view,
         ephemeral=False
     )
-    
-bot = MeuPrimeiroBot()
 
 @bot.event
 async def on_ready():
