@@ -30,6 +30,9 @@ reaction_roles = db["reaction_roles"]  # coleção reaction roles
 TICKET_MESSAGE_ID = None  # Salvará o ID da mensagem de criar ticket
 
 class MeuPrimeiroBot(commands.Bot):
+# Agora fora da classe:
+bot = MeuPrimeiroBot()
+    
     def __init__(self):
         intents = discord.Intents.default()
         intents.message_content = True
@@ -43,8 +46,6 @@ class MeuPrimeiroBot(commands.Bot):
         await self.tree.sync()
         print("Comandos sincronizados!")
 
-# Agora fora da classe:
-bot = MeuPrimeiroBot()
 class TicketView(discord.ui.View):
     def __init__(self):
         super().__init__(timeout=None)
@@ -81,7 +82,7 @@ class CreateTicketButton(discord.ui.Button):
             overwrites[staff_role] = discord.PermissionOverwrite(read_messages=True, send_messages=True)
 
         channel = await guild.create_text_channel(
-            name=f"ticket-{member.name}",
+            name=f"ticket-{member.id}",
             category=category,
             overwrites=overwrites
         )
@@ -497,3 +498,7 @@ async def set_reaction_role_error(interaction, error):
 
 # Token do bot
 bot.run(os.getenv("DISCORD_TOKEN"))
+if not token:
+    print("DISCORD_TOKEN not set!")
+    exit(1)
+bot.run(token)
