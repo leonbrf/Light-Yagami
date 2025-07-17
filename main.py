@@ -31,126 +31,95 @@ class MeuPrimeiroBot(discord.Client):
         intents.message_content = True
         intents.guilds = True
         self.tree = app_commands.CommandTree(self)
-        self.ticket_message_id = None  # inicializa aqui
         super().__init__(command_prefix="!", intents=intents)
+        bot = commands.Bot(command_prefix="!", intents=intents)
+        TICKET_CATEGORY_NAME = "Tickets"
+        TICKET_MESSAGE_ID = None  # Salvará o ID da mensagem de criar ticket
 
     async def setup_hook(self):
         await self.tree.sync()
-    async def on_ready(self):
-        print(f"O Bot {self.user} foi ligado com sucesso.")
-        guild = self.get_guild(1393796041635139614)
-        if not guild:
-            print("Guilda não encontrada")
-            return
-        canal = guild.get_channel(1394042647693492318)
-        if not canal:
-            print("Canal não encontrado")
+
+class TicketView(discord.ui.View):
+    def __init__(self):
+        super().__init__(timeout=None)
+        self.add_item(CreateTicketButton())
+
+class CreateTicketButton(discord.ui.Button):
+    def __init__(self):
+        super().__init__(label="🎫 Abrir Ticket", style=discord.ButtonStyle.green)
+
+    async def callback(self, interaction: discord.Interaction):
+        guild = interaction.guild
+        member = interaction.user
+
+        # Checa se já existe um ticket para o usuário
+        existing = discord.utils.get(guild.text_channels, name=f"ticket-{member.name.lower()}")
+        if existing:
+            await interaction.response.send_message("Você já tem um ticket aberto!", ephemeral=True)
             return
 
-        # Envia ou pega mensagem do ticket
-        # Se quiser mandar só 1x, faça um controle para evitar spam
+        # Cria categoria se não existir
+        category = discord.utils.get(guild.categories, name=TICKET_CATEGORY_NAME)
+        if not category:
+            category = await guild.create_category(TICKET_CATEGORY_NAME)
+
+        # Define permissões
+        overwrites = {
+            guild.default_role: discord.PermissionOverwrite(read_messages=False),
+            member: discord.PermissionOverwrite(read_messages=True, send_messages=True),
+        }
+
+        staff_role = discord.utils.get(guild.roles, name="Staff")
+        if staff_role:
+            overwrites[staff_role] = discord.PermissionOverwrite(read_messages=True, send_messages=True)
+
+        # Cria o canal do ticket
+        channel = await guild.create_text_channel(
+            name=f"ticket-{member.name}",
+            category=category,
+            overwrites=overwrites
+        )
+
+        # Envia mensagem com botão de fechar
+        view = CloseTicketView(member=member)
+        await channel.send(f"{member.mention}, seu ticket foi aberto!", view=view)
+        await interaction.response.send_message(f"Ticket criado: {channel.mention}", ephemeral=True)
+
+class CloseTicketView(discord.ui.View):
+    def __init__(self, member):
+        super().__init__(timeout=None)
+        self.add_item(CloseTicketButton(member))
+
+class CloseTicketButton(discord.ui.Button):
+    def __init__(self, member):
+        super().__init__(label="Fechar Ticket", style=discord.ButtonStyle.red)
+        self.member = member
+
+    async def callback(self, interaction: discord.Interaction):
+        if interaction.user != self.member and not interaction.user.guild_permissions.manage_channels:
+            await interaction.response.send_message("Você não pode fechar este ticket.", ephemeral=True)
+            return
+
+        await interaction.channel.delete(reason=f"Ticket fechado por {interaction.user}")
+
+@bot.event
+async def on_ready():
+    print(f"{bot.user} está online.")
+    bot.add_view(TicketView())  # Adiciona view para o botão mesmo após reiniciar
+
+    guild = bot.get_guild(1393796041635139614)  # Coloque seu ID de servidor
+    canal = guild.get_channel(1394042647693492318)  # Coloque seu ID de canal
+
+    if canal:
         embed = discord.Embed(
             title="🎫 Abrir Ticket de Suporte",
-            description="Clique no emoji 🎫 abaixo para abrir um ticket com a Staff.",
+            description="Clique no botão abaixo para abrir um ticket com a equipe.",
             color=discord.Color.green()
         )
-        msg = await canal.send(embed=embed)
-        await msg.add_reaction("🎫")
-        self.ticket_message_id = msg.id
+        await canal.send(embed=embed, view=TicketView())
+    else:
+        print("Canal de ticket não encontrado.")
 
-        # Cria categoria Tickets se não existir
-        category = discord.utils.get(guild.categories, name="Tickets")
-        if not category:
-            try:
-                category = await guild.create_category("Tickets")
-                print("Categoria Tickets criada.")
-            except Exception as e:
-                print(f"Erro criando categoria Tickets: {e}")
-
-    async def on_raw_reaction_add(self, payload):
-        # Ignora bots
-        if payload.user_id == self.user.id:
-            return
-
-        # Só reage se for a mensagem do ticket e emoji correto
-        if payload.message_id == self.ticket_message_id and str(payload.emoji) == "🎫":
-            guild = self.get_guild(payload.guild_id)
-            if not guild:
-                return
-            member = guild.get_member(payload.user_id)
-            if not member:
-                return
-
-            # Checa se já tem canal aberto
-            existing_channel = discord.utils.get(guild.channels, name=f"ticket-{member.name.lower()}")
-            if existing_channel:
-                try:
-                    await member.send("Você já tem um ticket aberto!")
-                except:
-                    pass
-                return
-
-            # Pega categoria Tickets
-            category = discord.utils.get(guild.categories, name="Tickets")
-            if not category:
-                # Se não tiver, cria
-                category = await guild.create_category("Tickets")
-
-            # Permissões
-            overwrites = {
-                guild.default_role: discord.PermissionOverwrite(read_messages=False),
-                member: discord.PermissionOverwrite(read_messages=True, send_messages=True),
-                discord.utils.get(guild.roles, name="Staff"): discord.PermissionOverwrite(read_messages=True, send_messages=True)
-            }
-
-            # Cria canal
-            channel = await guild.create_text_channel(f"ticket-{member.name}", category=category, overwrites=overwrites)
-
-            # Cria botão fechar ticket
-            close_button = discord.ui.Button(label="Fechar ticket", style=discord.ButtonStyle.red)
-
-            async def close_callback(interaction: discord.Interaction):
-                if interaction.user != member and not interaction.user.guild_permissions.manage_channels:
-                    await interaction.response.send_message("Você não pode fechar este ticket.", ephemeral=True)
-                    return
-                await channel.delete(reason=f"Ticket fechado por {interaction.user}")
-
-            close_button.callback = close_callback
-            view = discord.ui.View()
-            view.add_item(close_button)
-
-            await channel.send(f"{member.mention} seu ticket foi aberto! Um staff irá te ajudar em breve.", view=view)
-
-
-
-
-    async def on_member_join(self, member: discord.Member):
-        print(f"Novo membro entrou: {member}")
-
-        canal_id = 1393807069999530084  # Canal fixo de boas-vindas
-        canal = member.guild.get_channel(canal_id)
-        print(f"Canal obtido: {canal}")
-
-        if canal is None:
-            print(f"Canal com ID {canal_id} não encontrado no servidor {member.guild.name}")
-        else:
-            if isinstance(canal, discord.TextChannel):
-                try:
-                    await canal.send(f"👋 Seja bem-vindo(a) ao servidor, {member.mention}!")
-                    print(f"Mensagem de boas-vindas enviada para {member.name}")
-                except Exception as e:
-                    print(f"Erro ao enviar mensagem no canal de boas-vindas: {e}")
-
-        cargo = discord.utils.get(member.guild.roles, name="Visitant")
-        if cargo:
-            try:
-                await member.add_roles(cargo)
-                print(f"{member} recebeu o cargo {cargo.name} automaticamente.")
-            except Exception as e:
-                print(f"Erro ao adicionar cargo: {e}")
-
-# Instancia o bot
-bot = MeuPrimeiroBot()
 
 def load_players():
     if os.path.exists(DATA_FILE):
