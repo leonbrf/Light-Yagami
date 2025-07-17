@@ -52,24 +52,25 @@ class TicketView(discord.ui.View):
 
 class CreateTicketButton(discord.ui.Button):
     def __init__(self):
-        super().__init__(label="🎫 Abrir Ticket", style=discord.ButtonStyle.green)
+        super().__init__(
+            label="🎫 Abrir Ticket",
+            style=discord.ButtonStyle.green,
+            custom_id="abrir_ticket"  # Adicionado para persistência
+        )
 
     async def callback(self, interaction: discord.Interaction):
         guild = interaction.guild
         member = interaction.user
 
-        # Checa se já existe um ticket para o usuário
         existing = discord.utils.get(guild.text_channels, name=f"ticket-{member.name.lower()}")
         if existing:
             await interaction.response.send_message("Você já tem um ticket aberto!", ephemeral=True)
             return
 
-        # Cria categoria se não existir
         category = discord.utils.get(guild.categories, name=TICKET_CATEGORY_NAME)
         if not category:
             category = await guild.create_category(TICKET_CATEGORY_NAME)
 
-        # Define permissões
         overwrites = {
             guild.default_role: discord.PermissionOverwrite(read_messages=False),
             member: discord.PermissionOverwrite(read_messages=True, send_messages=True),
@@ -79,14 +80,12 @@ class CreateTicketButton(discord.ui.Button):
         if staff_role:
             overwrites[staff_role] = discord.PermissionOverwrite(read_messages=True, send_messages=True)
 
-        # Cria o canal do ticket
         channel = await guild.create_text_channel(
             name=f"ticket-{member.name}",
             category=category,
             overwrites=overwrites
         )
 
-        # Envia mensagem com botão de fechar
         view = CloseTicketView(member=member)
         await channel.send(f"{member.mention}, seu ticket foi aberto!", view=view)
         await interaction.response.send_message(f"Ticket criado: {channel.mention}", ephemeral=True)
@@ -98,7 +97,11 @@ class CloseTicketView(discord.ui.View):
 
 class CloseTicketButton(discord.ui.Button):
     def __init__(self, member):
-        super().__init__(label="Fechar Ticket", style=discord.ButtonStyle.red)
+        super().__init__(
+            label="Fechar Ticket",
+            style=discord.ButtonStyle.red,
+            custom_id=f"fechar_ticket_{member.id}"  # Precisa ter custom_id único
+        )
         self.member = member
 
     async def callback(self, interaction: discord.Interaction):
@@ -107,7 +110,6 @@ class CloseTicketButton(discord.ui.Button):
             return
 
         await interaction.channel.delete(reason=f"Ticket fechado por {interaction.user}")
-
 
 @bot.event
 async def on_ready():
@@ -126,6 +128,7 @@ async def on_ready():
         await canal.send(embed=embed, view=TicketView())
     else:
         print("Canal de ticket não encontrado.")
+        bot.add_view(TicketView())  # Agora é persistente e não dará erro
 
 
 # Comando /soma
