@@ -12,7 +12,7 @@ import os
 from pymongo.mongo_client import MongoClient
 from pymongo.server_api import ServerApi
 from pymongo import ReturnDocument
-
+from keep_alive import keep_alive
 
 uri = "mongodb+srv://leon020211:leon020211@light.vu55u7q.mongodb.net/?retryWrites=true&w=majority&appName=Light"
 
@@ -505,6 +505,8 @@ async def on_raw_reaction_remove(payload):
 async def set_reaction_role_error(interaction, error):
     if isinstance(error, app_commands.errors.MissingPermissions):
         await interaction.response.send_message("You need to be an administrator to use this command!", ephemeral=True)
+
+keep_alive()
 
 # Token do bot
 bot.run(os.getenv("DISCORD_TOKEN"))
