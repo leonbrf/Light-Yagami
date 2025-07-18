@@ -131,7 +131,7 @@ async def on_ready():
     canal = guild.get_channel(1394042647693492318)
 
     # Verifica se a mensagem já foi enviada anteriormente
-    last_messages = await canal.history(limit=5).flatten()
+    last_messages = [msg async for msg in canal.history(limit=5)]
     for msg in last_messages:
         if msg.author == bot.user and "Abrir Ticket de Suporte" in msg.content or (msg.embeds and msg.embeds[0].title == "🎫 Abrir Ticket de Suporte"):
             print("🟡 Mensagem de ticket já enviada. Pulando envio.")
