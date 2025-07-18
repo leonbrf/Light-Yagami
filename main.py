@@ -143,9 +143,16 @@ async def on_ready():
 
 @bot.event
 async def on_member_join(member):
-    canal = member.guild.get_channel(1393807069999530084)  # Substitua pelo ID do canal correto
-    if canal:
-        await canal.send(f"👋 Welcome to the server, {member.mention}!")
+    channel_id = 1393807069999530084
+    channel = member.guild.get_channel(channel_id)
+
+    if channel:
+        await channel.send(f"👋 Bem-vindo ao servidor, {member.mention}!")
+
+    # Buscar o cargo "Visitant" pelo nome
+    role = discord.utils.get(member.guild.roles, name="Visitant")
+    if role:
+        await member.add_roles(role)
 
 # Comando /soma
 @bot.tree.command(name="soma", description="Some dois números distintos")
