@@ -13,6 +13,7 @@ from pymongo.mongo_client import MongoClient
 from pymongo.server_api import ServerApi
 from pymongo import ReturnDocument
 
+
 uri = "mongodb+srv://leon020211:leon020211@light.vu55u7q.mongodb.net/?retryWrites=true&w=majority&appName=Light"
 
 # Create a new client and connect to the server
