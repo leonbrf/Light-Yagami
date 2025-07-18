@@ -452,52 +452,44 @@ async def embed(interaction: discord.Interaction, descricao: str, titulo: str = 
     embed.set_footer(text=f"Enviado por {interaction.user.name}")
     await interaction.response.send_message(embed=embed)
 
-# No comando /set_reaction_role e nos eventos, use a coleção reaction_roles (MongoDB)
-
-@bot.tree.command(name="setreactionrole", description="Create a reaction role message")
+@bot.tree.command(name="setreactionrole", description="Adiciona reaction role a uma mensagem já existente")
 @app_commands.checks.has_permissions(administrator=True)
 @app_commands.describe(
-    channel="Channel to send the reaction role message",
-    message="Message content",
-    emoji="Emoji to react with",
-    role="Role to assign when reacted"
+    channel="Canal onde está a mensagem",
+    message_id="ID da mensagem existente",
+    emoji="Emoji para reagir",
+    role="Cargo que será atribuído"
 )
 async def set_reaction_role(
     interaction: discord.Interaction,
     channel: discord.TextChannel,
-    message: str,
+    message_id: str,
     emoji: str,
     role: discord.Role
 ):
-    sent_message = await channel.send(message)
-    await sent_message.add_reaction(emoji)
+    try:
+        # Pegar a mensagem existente pelo ID
+        message = await channel.fetch_message(int(message_id))
+        await message.add_reaction(emoji)
 
-    # Salva no MongoDB
-    reaction_roles.insert_one({
-        "message_id": sent_message.id,
-        "channel_id": channel.id,
-        "emoji": emoji,
-        "role_id": role.id
-    })
+        # Salvar no MongoDB
+        reaction_roles.insert_one({
+            "message_id": message.id,
+            "channel_id": channel.id,
+            "emoji": emoji,
+            "role_id": role.id
+        })
 
-    await interaction.response.send_message("Reaction role message sent and saved!", ephemeral=True)
-
-@bot.event
-async def on_raw_reaction_add(payload):
-    if payload.member and payload.member.bot:
-        return
-
-    entry = reaction_roles.find_one({
-        "message_id": payload.message_id,
-        "emoji": str(payload.emoji)
-    })
-
-    if entry:
-        guild = bot.get_guild(payload.guild_id)
-        role = guild.get_role(entry["role_id"]) if guild else None
-        member = guild.get_member(payload.user_id) if guild else None
-        if role and member:
-            await member.add_roles(role)
+        await interaction.response.send_message(
+            f"✅ Reaction Role configurado!\nEmoji: {emoji}\nCargo: {role.name}\nMensagem: {message.id}",
+            ephemeral=True
+        )
+    except discord.NotFound:
+        await interaction.response.send_message("❌ Mensagem não encontrada. Verifique o ID e o canal.", ephemeral=True)
+    except discord.HTTPException as e:
+        await interaction.response.send_message(f"❌ Erro ao adicionar reação: {e}", ephemeral=True)
+    except Exception as e:
+        await interaction.response.send_message(f"❌ Ocorreu um erro inesperado: {e}", ephemeral=True)
 
 @bot.event
 async def on_raw_reaction_remove(payload):
