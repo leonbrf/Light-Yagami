@@ -141,6 +141,11 @@ async def on_ready():
         print("Canal de ticket não encontrado.")
         bot.add_view(TicketView(ticket_category_name=bot.TICKET_CATEGORY_NAME))  # Agora é persistente e não dará erro
 
+@bot.event
+async def on_member_join(member):
+    canal = member.guild.get_channel(1393807069999530084)  # Substitua pelo ID do canal correto
+    if canal:
+        await canal.send(f"👋 Welcome to the server, {member.mention}!")
 
 # Comando /soma
 @bot.tree.command(name="soma", description="Some dois números distintos")
