@@ -125,21 +125,24 @@ async def ticket_command(interaction: discord.Interaction):
 @bot.event
 async def on_ready():
     print(f"{bot.user} está online.")
-    bot.add_view(TicketView(ticket_category_name=bot.TICKET_CATEGORY_NAME))
-    
-    guild = bot.get_guild(1393796041635139614)  # Coloque seu ID de servidor
-    canal = guild.get_channel(1394042647693492318)  # Coloque seu ID de canal
+    bot.add_view(TicketView(ticket_category_name=bot.TICKET_CATEGORY_NAME))  # view persistente
 
-    if canal:
-        embed = discord.Embed(
-            title="🎫 Abrir Ticket de Suporte",
-            description="Clique no botão abaixo para abrir um ticket com a equipe.",
-            color=discord.Color.green()
-        )
-        await canal.send(embed=embed, view=TicketView(ticket_category_name=bot.TICKET_CATEGORY_NAME))
-    else:
-        print("Canal de ticket não encontrado.")
-        bot.add_view(TicketView(ticket_category_name=bot.TICKET_CATEGORY_NAME))  # Agora é persistente e não dará erro
+    guild = bot.get_guild(1393796041635139614)
+    canal = guild.get_channel(1394042647693492318)
+
+    # Verifica se a mensagem já foi enviada anteriormente
+    last_messages = await canal.history(limit=5).flatten()
+    for msg in last_messages:
+        if msg.author == bot.user and "Abrir Ticket de Suporte" in msg.content or (msg.embeds and msg.embeds[0].title == "🎫 Abrir Ticket de Suporte"):
+            print("🟡 Mensagem de ticket já enviada. Pulando envio.")
+            return
+
+    embed = discord.Embed(
+        title="🎫 Abrir Ticket de Suporte",
+        description="Clique no botão abaixo para abrir um ticket com a equipe.",
+        color=discord.Color.green()
+    )
+    await canal.send(embed=embed, view=TicketView(ticket_category_name=bot.TICKET_CATEGORY_NAME))
 
 @bot.event
 async def on_member_join(member):
