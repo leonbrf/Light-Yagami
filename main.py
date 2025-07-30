@@ -125,24 +125,36 @@ async def ticket_command(interaction: discord.Interaction):
 @bot.event
 async def on_ready():
     print(f"{bot.user} está online.")
-    bot.add_view(TicketView(ticket_category_name=bot.TICKET_CATEGORY_NAME))  # view persistente
 
-    guild = bot.get_guild(1393796041635139614)
-    canal = guild.get_channel(1394042647693492318)
+    bot.add_view(TicketView(ticket_category_name=bot.TICKET_CATEGORY_NAME))
 
-    # Verifica se a mensagem já foi enviada anteriormente
-    last_messages = [msg async for msg in canal.history(limit=5)]
-    for msg in last_messages:
-        if msg.author == bot.user and "Abrir Ticket de Suporte" in msg.content or (msg.embeds and msg.embeds[0].title == "🎫 Abrir Ticket de Suporte"):
-            print("🟡 Mensagem de ticket já enviada. Pulando envio.")
+    try:
+        guild = bot.get_guild(1393796041635139614)
+        canal = guild.get_channel(1394042647693492318)
+
+        if canal is None:
+            print("🔴 Canal não encontrado!")
             return
 
-    embed = discord.Embed(
-        title="🎫 Abrir Ticket de Suporte",
-        description="Clique no botão abaixo para abrir um ticket com a equipe.",
-        color=discord.Color.green()
-    )
-    await canal.send(embed=embed, view=TicketView(ticket_category_name=bot.TICKET_CATEGORY_NAME))
+        last_messages = [msg async for msg in canal.history(limit=5)]
+        for msg in last_messages:
+            if msg.author == bot.user and (
+                "Abrir Ticket de Suporte" in msg.content or 
+                (msg.embeds and msg.embeds[0].title == "🎫 Abrir Ticket de Suporte")
+            ):
+                print("🟡 Mensagem de ticket já enviada. Pulando envio.")
+                return
+
+        embed = discord.Embed(
+            title="🎫 Abrir Ticket de Suporte",
+            description="Clique no botão abaixo para abrir um ticket com a equipe.",
+            color=discord.Color.green()
+        )
+        await canal.send(embed=embed, view=TicketView(ticket_category_name=bot.TICKET_CATEGORY_NAME))
+
+    except discord.HTTPException as e:
+        print(f"❌ Erro ao acessar canal ou enviar mensagem: {e}")
+        await asyncio.sleep(10)  # Pequena pausa para não causar flood se ocorrer erro
 
 @bot.event
 async def on_member_join(member):
