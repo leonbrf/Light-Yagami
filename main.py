@@ -503,10 +503,16 @@ async def on_raw_reaction_remove(payload):
 
     if entry:
         guild = bot.get_guild(payload.guild_id)
-        role = guild.get_role(entry["role_id"]) if guild else None
-        member = guild.get_member(payload.user_id) if guild else None
+        if not guild:
+            return
+
+        role = guild.get_role(entry["role_id"])
+        member = guild.get_member(payload.user_id)
+
         if role and member:
-            await member.remove_roles(role)
+            await asyncio.sleep(1)  # espera 1 segundo antes de fazer a requisição
+            if role in member.roles:  # evita remover cargo que já não está lá
+                await member.remove_roles(role)
 
 @set_reaction_role.error
 async def set_reaction_role_error(interaction, error):
