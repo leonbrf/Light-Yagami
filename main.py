@@ -535,6 +535,3 @@ keep_alive()
 
 # Token do bot
 bot.run(os.getenv("DISCORD_TOKEN"))
-
-/* AAAAAA
-*/
